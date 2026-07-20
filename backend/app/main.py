@@ -13,6 +13,7 @@ from app.api.routes.departments import router as departments_router
 from app.api.routes.employees import router as employees_router
 from app.api.routes.attendance import router as attendance_router
 from app.api.routes.leave import router as leave_router
+from app.api.routes.insights import router as insights_router
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +73,7 @@ app.include_router(departments_router, prefix="/api")
 app.include_router(employees_router, prefix="/api")
 app.include_router(attendance_router, prefix="/api")
 app.include_router(leave_router, prefix="/api")
+app.include_router(insights_router, prefix="/api")
 
 
 @app.get(

@@ -12,7 +12,7 @@ Follows workforce management conventions:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import List, Optional, Tuple
 from uuid import UUID
 
@@ -401,3 +401,81 @@ class LeaveService:
     ) -> List[LeaveBalance]:
         """Fetch all balance entries for an employee, optionally filtered by year."""
         return await self.balance_repo.list_for_employee(employee_id, year)
+
+    async def run_accrual_engine(self, employee_id: UUID, year: int, requesting_user_id: UUID) -> List[LeaveBalance]:
+        """
+        Dynamically calculate and accrue leave balances for an employee for a specific year.
+        Formula:
+          - 1.5 days accrued per completed month of service in that year.
+          - If hired in previous year, start accrual from Jan.
+          - If hired in target year, start from hire month.
+        """
+        async with self.db_session.begin():
+            employee = await self._require_employee(employee_id)
+            hire_date = employee.hire_date
+            
+            # Determine start month of accrual in the target year
+            if hire_date.year < year:
+                start_month = 1
+            elif hire_date.year == year:
+                start_month = hire_date.month
+            else:
+                start_month = 13
+            
+            # End month is either current month (if current year matches target year) or 12
+            current_date = date.today()
+            if current_date.year == year:
+                end_month = min(12, current_date.month)
+            elif current_date.year > year:
+                end_month = 12
+            else:
+                end_month = 0
+            
+            months_served = max(0, end_month - start_month + 1)
+            accrued_days = months_served * 1.5
+            
+            from app.models.leave import LeaveType, LeaveBalance
+            from app.schemas.leave import LeaveBalanceCreate, LeaveBalanceUpdate
+            
+            updated_balances = []
+            for leave_type in (LeaveType.CASUAL, LeaveType.SICK):
+                stmt = select(LeaveBalance).where(
+                    LeaveBalance.employee_id == employee_id,
+                    LeaveBalance.leave_type == leave_type,
+                    LeaveBalance.year == year
+                )
+                res = await self.db_session.execute(stmt)
+                balance = res.scalar_one_or_none()
+                
+                if balance:
+                    balance = await self.balance_repo.update(
+                        balance,
+                        LeaveBalanceUpdate(allocated_days=int(accrued_days))
+                    )
+                else:
+                    balance = await self.balance_repo.create(
+                        LeaveBalanceCreate(
+                            employee_id=employee_id,
+                            leave_type=leave_type,
+                            year=year,
+                            allocated_days=int(accrued_days)
+                        )
+                    )
+                updated_balances.append(balance)
+                
+                audit = AuditLog(
+                    user_id=requesting_user_id,
+                    action="LEAVE_ACCRUAL",
+                    target_type="leave_balances",
+                    target_id=balance.id,
+                    details={
+                        "employee_id": str(employee_id),
+                        "leave_type": leave_type.value,
+                        "year": year,
+                        "months_served": months_served,
+                        "accrued_days": accrued_days,
+                    },
+                )
+                self.db_session.add(audit)
+                
+            return updated_balances

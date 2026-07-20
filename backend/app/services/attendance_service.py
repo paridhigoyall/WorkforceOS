@@ -149,8 +149,9 @@ class AttendanceService:
             # Fetch the associated employee's user ID for the audit log
             employee = db_attendance.employee
             
-            # Calculate overtime for the audit log
+            # Calculate overtime and under-hours for the audit log
             overtime_hours = max(Decimal("0.00"), total_hours - Decimal("8.00"))
+            under_hours = max(Decimal("0.00"), Decimal("8.00") - total_hours)
 
             # Log the audit event
             audit_log = AuditLog(
@@ -164,6 +165,7 @@ class AttendanceService:
                     "check_out_time": check_out_time.isoformat(),
                     "total_hours": float(total_hours),
                     "overtime_hours": float(overtime_hours),
+                    "under_hours": float(under_hours),
                     "status": status.value,
                 },
             )
