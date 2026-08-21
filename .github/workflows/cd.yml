@@ -22,20 +22,20 @@ jobs:
     environment: production
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba72b1f356dcf7f8309d7dd3230c97034178 # v3.3.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       - name: Log in to Container Registry (GHCR)
-        uses: docker/login-action@0d4c9c5ec767c7341db5e9f4281032ed71c01720 # v3.2.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Backend Image with SBOM & SLSA Provenance
-        uses: docker/build-push-action@ca052c543a47e2ed80c4a860717288780e0c2960 # v5.4.0
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: ./backend
           file: ./backend/Dockerfile
@@ -49,7 +49,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and Push Frontend Image with SBOM & SLSA Provenance
-        uses: docker/build-push-action@ca052c543a47e2ed80c4a860717288780e0c2960 # v5.4.0
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
@@ -63,7 +63,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan Backend Container Image for Vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@b4f40445d475cf4f4b2326b527878d655f5ef99e # v0.20.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
           format: 'table'
@@ -73,7 +73,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Scan Frontend Container Image for Vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@b4f40445d475cf4f4b2326b527878d655f5ef99e # v0.20.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}'
           format: 'table'
