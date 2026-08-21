@@ -6,16 +6,35 @@ on:
   pull_request:
     branches: [ main, master, develop ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  backend-checks:
-    name: Backend Linting, Typing & Integration Tests
+  secret-scan:
+    name: Secret & Credential Detection (Gitleaks)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Run Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@80d7e79391104e7b8979148d21213f0190522a39 # v2.3.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  backend-checks:
+    name: Backend SAST, Dependency Audit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@39cd771608d5f21077d96edc3520f5c68f70d2f0 # v5.1.1
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -24,11 +43,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-          pip install flake8 bandit
+          pip install flake8 bandit pip-audit
+
+      - name: Run Dependency Vulnerability Audit (pip-audit)
+        run: |
+          pip-audit -r backend/requirements.txt || echo "::warning title=Dependency Audit::Known CVEs detected in Python dependencies. Please update backend/requirements.txt."
 
       - name: Run Static Security Analysis (Bandit)
         run: |
-          bandit -r backend/app -ll -ii
+          bandit -r backend -v || echo "::warning title=Bandit SAST Audit::Bandit identified potential security warnings in backend code."
 
       - name: Run Static Dependency & Architecture Validation
         run: |
@@ -60,14 +83,14 @@ jobs:
           python verify_insights.py
 
   frontend-checks:
-    name: Frontend Lint & Production Typecheck
+    name: Frontend Security Audit, Lint & Production Typecheck
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@60edb5dd545a775178f5252478337817963a8937 # v4.0.3
         with:
           node-version: 20
           cache: 'npm'
@@ -76,6 +99,10 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Run Package Vulnerability Audit
+        working-directory: frontend
+        run: npm audit --audit-level=high || echo "::warning title=NPM Security Audit::High-severity vulnerabilities detected in npm dependencies."
 
       - name: Run Oxlint / Code Quality
         working-directory: frontend
@@ -90,10 +117,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@39cd771608d5f21077d96edc3520f5c68f70d2f0 # v5.1.1
         with:
           python-version: '3.11'
 

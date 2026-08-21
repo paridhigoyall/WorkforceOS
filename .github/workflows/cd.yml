@@ -7,50 +7,83 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     name: Build Multi-User Production Containers & Deploy
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d70bba72b1f356dcf7f8309d7dd3230c97034178 # v3.3.0
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
+      - name: Log in to Container Registry (GHCR)
+        uses: docker/login-action@0d4c9c5ec767c7341db5e9f4281032ed71c01720 # v3.2.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Backend Image
-        uses: docker/build-push-action@v5
+      - name: Build and Push Backend Image with SBOM & SLSA Provenance
+        uses: docker/build-push-action@ca052c543a47e2ed80c4a860717288780e0c2960 # v5.4.0
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
+          sbom: true
+          provenance: true
           tags: |
             ghcr.io/${{ github.repository }}/backend:latest
             ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and Push Frontend Image
-        uses: docker/build-push-action@v5
+      - name: Build and Push Frontend Image with SBOM & SLSA Provenance
+        uses: docker/build-push-action@ca052c543a47e2ed80c4a860717288780e0c2960 # v5.4.0
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
+          sbom: true
+          provenance: true
           tags: |
             ghcr.io/${{ github.repository }}/frontend:latest
             ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy Production Stack via Docker Compose
-        if: github.ref == 'refs/heads/main'
+      - name: Scan Backend Container Image for Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@b4f40445d475cf4f4b2326b527878d655f5ef99e # v0.20.0
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Scan Frontend Container Image for Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@b4f40445d475cf4f4b2326b527878d655f5ef99e # v0.20.0
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Production Deployment Hook Notification
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: |
-          echo "Triggering deployment orchestration for scalable multi-worker backend..."
-          # docker compose --file docker-compose.yml up -d --scale backend=3
+          echo "Production deployment container release ghcr.io/${{ github.repository }} SHA ${{ github.sha }} successfully published."
+          echo "Triggering automated remote deployment orchestration..."
