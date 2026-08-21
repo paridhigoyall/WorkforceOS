@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Filter, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
 import { attendanceApi } from '../api/endpoints';
-import { AttendanceRecord } from '../types';
+import type { AttendanceRecord } from '../types';
 
 export const Attendance: React.FC = () => {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);

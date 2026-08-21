@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Building2, Clock, Calendar, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Users, Building2, Clock, Calendar, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatCard } from '../components/UI/StatCard';
 import { employeesApi, departmentsApi, insightsApi, leaveApi } from '../api/endpoints';
-import { AttendanceInsights, LeaveInsights, LeaveRequest } from '../types';
+import type { AttendanceInsights, LeaveInsights, LeaveRequest } from '../types';
 
 export const Dashboard: React.FC = () => {
   const [employeeCount, setEmployeeCount] = useState<number>(0);

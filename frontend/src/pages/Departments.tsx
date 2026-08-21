@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Plus, Trash2, Edit3, Users } from 'lucide-react';
+import { Building2, Plus, Trash2 } from 'lucide-react';
 import { departmentsApi } from '../api/endpoints';
-import { Department } from '../types';
+import type { Department } from '../types';
 import { Modal } from '../components/UI/Modal';
 
 export const Departments: React.FC = () => {

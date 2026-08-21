@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import {
+import type {
   User,
   Department,
   Employee,
@@ -9,8 +9,12 @@ import {
   AttendanceInsights,
   LeaveInsights,
   DepartmentInsights,
-  AIPredictionDataset
+  AIPredictionDataset,
+  AuditLogListResponse,
+  PayrollPeriod,
+  PayslipDetail
 } from '../types';
+
 
 export const authApi = {
   login: async (username: string, password: string) => {
@@ -142,3 +146,34 @@ export const insightsApi = {
     return response.data;
   }
 };
+
+export const auditLogsApi = {
+  list: async (params?: { action?: string; target_type?: string; user_id?: string; limit?: number; offset?: number }) => {
+    const response = await apiClient.get<AuditLogListResponse>('/audit-logs', { params });
+    return response.data;
+  }
+};
+
+export const payrollApi = {
+  generate: async (data: { year: number; month: number }) => {
+    const response = await apiClient.post<PayrollPeriod>('/payroll/generate', data);
+    return response.data;
+  },
+  listPeriods: async (params?: { limit?: number; offset?: number }) => {
+    const response = await apiClient.get<PayrollPeriod[]>('/payroll/periods', { params });
+    return response.data;
+  },
+  getPeriod: async (id: string) => {
+    const response = await apiClient.get<PayrollPeriod>(`/payroll/periods/${id}`);
+    return response.data;
+  },
+  approvePeriod: async (id: string) => {
+    const response = await apiClient.post<PayrollPeriod>(`/payroll/periods/${id}/approve`);
+    return response.data;
+  },
+  getPayslip: async (recordId: string) => {
+    const response = await apiClient.get<PayslipDetail>(`/payroll/records/${recordId}/payslip`);
+    return response.data;
+  }
+};
+

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Plus, CheckCircle2, XCircle, Ban, Clock } from 'lucide-react';
+import { Plus, CheckCircle2, XCircle } from 'lucide-react';
 import { leaveApi } from '../api/endpoints';
-import { LeaveRequest, LeaveBalance } from '../types';
+import type { LeaveRequest, LeaveBalance } from '../types';
 import { Modal } from '../components/UI/Modal';
 
 export const Leave: React.FC = () => {
@@ -215,8 +215,17 @@ export const Leave: React.FC = () => {
                             <XCircle size={14} />
                             <span>Reject</span>
                           </button>
+                          <button
+                            onClick={() => handleCancel(req.id)}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}
+                            title="Cancel"
+                          >
+                            <span>Cancel</span>
+                          </button>
                         </div>
                       )}
+
                     </td>
                   </tr>
                 ))

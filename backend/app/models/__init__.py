@@ -7,6 +7,7 @@ from app.models.employee import Employee
 from app.models.audit_log import AuditLog
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.leave import LeaveRequest, LeaveType, LeaveStatus, LeaveBalance
+from app.models.payroll import PayrollPeriod, PayrollPeriodStatus, PayrollRecord, PayrollRecordStatus
 
 __all__ = [
     "Base",
@@ -24,4 +25,9 @@ __all__ = [
     "LeaveType",
     "LeaveStatus",
     "LeaveBalance",
+    "PayrollPeriod",
+    "PayrollPeriodStatus",
+    "PayrollRecord",
+    "PayrollRecordStatus",
 ]
+

@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend
 } from 'recharts';
-import { TrendingUp, ShieldAlert, Cpu, Award } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 import { insightsApi } from '../api/endpoints';
-import { DepartmentInsights, LeaveInsights, AIPredictionDataset } from '../types';
+import type { DepartmentInsights, LeaveInsights, AIPredictionDataset } from '../types';
 
 export const Insights: React.FC = () => {
   const [deptInsights, setDeptInsights] = useState<DepartmentInsights[]>([]);

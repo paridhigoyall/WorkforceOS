@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Search, UserCheck, UserX, Phone, DollarSign, Calendar } from 'lucide-react';
+import { UserPlus, Search, UserX } from 'lucide-react';
 import { employeesApi, departmentsApi } from '../api/endpoints';
-import { Employee, Department } from '../types';
+import type { Employee, Department } from '../types';
 import { Modal } from '../components/UI/Modal';
 
 export const Employees: React.FC = () => {

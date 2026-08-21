@@ -117,3 +117,73 @@ export interface AIPredictionDataset {
   generated_at: string;
   data: AIPredictionRow[];
 }
+
+export interface AuditLogEntry {
+  id: string;
+  user_id: string;
+  user_email?: string;
+  action: string;
+  target_type: string;
+  target_id: string;
+  details?: Record<string, any>;
+  created_at: string;
+}
+
+export interface AuditLogListResponse {
+  total: number;
+  items: AuditLogEntry[];
+  limit: number;
+  offset: number;
+}
+
+export interface PayrollRecord {
+  id: string;
+  payroll_period_id: string;
+  employee_id: string;
+  employee_email?: string;
+  department_name?: string;
+  base_salary: number;
+  overtime_hours: number;
+  overtime_pay: number;
+  unpaid_leave_days: number;
+  unpaid_leave_deduction: number;
+  tax_deduction: number;
+  net_pay: number;
+  status: 'PENDING' | 'PAID';
+  created_at: string;
+}
+
+export interface PayrollPeriod {
+  id: string;
+  year: number;
+  month: number;
+  status: 'DRAFT' | 'PROCESSING' | 'APPROVED' | 'PAID';
+  total_gross_pay: number;
+  total_deductions: number;
+  total_net_pay: number;
+  employee_count: number;
+  approved_at?: string;
+  created_at: string;
+  records?: PayrollRecord[];
+}
+
+export interface PayslipDetail {
+  id: string;
+  period_year: number;
+  period_month: number;
+  employee_id: string;
+  employee_email?: string;
+  department_name?: string;
+  base_salary: number;
+  overtime_hours: number;
+  overtime_pay: number;
+  unpaid_leave_days: number;
+  unpaid_leave_deduction: number;
+  gross_earnings: number;
+  total_deductions: number;
+  tax_deduction: number;
+  net_pay: number;
+  status: 'PENDING' | 'PAID';
+  generated_at: string;
+}
+

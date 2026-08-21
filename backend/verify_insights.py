@@ -236,14 +236,17 @@ async def verify_insights_logic() -> None:
         # 5. Test AI Prediction Dataset & Anomalies
         # ----------------------------------------------------
         dataset = await svc.get_ai_prediction_dataset()
-        if dataset and len(dataset.data) == 1:
-            row = dataset.data[0]
-            ok("AI Prediction Dataset generated successfully with 1 active employee row")
-            if row.tenure_days == 200:
-                ok("AI Prediction: Tenure calculation is accurate (200 days)")
+        if dataset and len(dataset.data) >= 1:
+            row = next((r for r in dataset.data if r.employee_id == emp1.id), None)
+            if row:
+                ok("AI Prediction Dataset generated successfully with active employee row")
+                if row.tenure_days == 200:
+                    ok("AI Prediction: Tenure calculation is accurate (200 days)")
+                else:
+                    fail("AI Prediction: Tenure mismatch", str(row.tenure_days))
+                ok(f"AI Prediction: Turnover risk class classification calculated as: {row.turnover_risk_label}")
             else:
-                fail("AI Prediction: Tenure mismatch", str(row.tenure_days))
-            ok(f"AI Prediction: Turnover risk class classification calculated as: {row.turnover_risk_label}")
+                fail("AI Prediction: Employee row not found in dataset")
         else:
             fail("AI Prediction Dataset failed or is empty")
 
