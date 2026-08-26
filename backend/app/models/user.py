@@ -4,7 +4,7 @@ import enum
 import uuid
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import Enum, String
+from sqlalchemy import Boolean, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, SoftDeleteMixin, UUIDPrimaryKeyMixin
@@ -12,6 +12,7 @@ from app.models.base import Base, TimestampMixin, SoftDeleteMixin, UUIDPrimaryKe
 if TYPE_CHECKING:
     from app.models.employee import Employee
     from app.models.audit_log import AuditLog
+    from app.models.notification import Notification
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
@@ -25,6 +26,8 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     * ``email`` – unique, required.
     * ``hashed_password`` – BCrypt hash stored.
     * ``role`` – enum controlling RBAC.
+    * ``is_mfa_enabled`` – boolean flag indicating TOTP 2FA is active.
+    * ``mfa_secret`` – base32 secret for RFC 6238 TOTP verification.
     * ``employee`` – optional one‑to‑one relationship to :class:`Employee`.
     """
 
@@ -48,6 +51,17 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         default=UserRole.STAFF,
         comment="User role for RBAC",
     )
+    is_mfa_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether MFA/TOTP is required on login",
+    )
+    mfa_secret: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="Base32 TOTP secret key for MFA",
+    )
 
     # One‑to‑one relationship to Employee (uselist=False enforces 1‑1)
     employee: Mapped[Employee | None] = relationship(
@@ -61,6 +75,14 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     # One-to-many relationship to AuditLog
     audit_logs: Mapped[List[AuditLog]] = relationship(
         "AuditLog",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    # One-to-many relationship to Notification
+    notifications: Mapped[List[Notification]] = relationship(
+        "Notification",
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,

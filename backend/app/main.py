@@ -19,6 +19,8 @@ from app.api.routes.leave import router as leave_router
 from app.api.routes.insights import router as insights_router
 from app.api.routes.audit_logs import router as audit_logs_router
 from app.api.routes.payroll import router as payroll_router
+from app.api.routes.notifications import router as notifications_router
+
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -48,7 +50,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "connect-src 'self';"
         )
         # Remove server identification
-        response.headers.pop("server", None)
+        if "server" in response.headers:
+            del response.headers["server"]
         return response
 
 
@@ -120,6 +123,8 @@ app.include_router(leave_router, prefix="/api")
 app.include_router(insights_router, prefix="/api")
 app.include_router(audit_logs_router, prefix="/api")
 app.include_router(payroll_router, prefix="/api")
+app.include_router(notifications_router, prefix="/api")
+
 
 
 @app.get(

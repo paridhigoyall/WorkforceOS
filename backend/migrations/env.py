@@ -21,16 +21,27 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+import sys
+from pathlib import Path
+
+# Add backend root to sys.path so 'app' is importable
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 # ---------------------------------------------------------------------------
 # Import application Base and ALL models so autogenerate detects them
 # ---------------------------------------------------------------------------
 from app.models.base import Base          # DeclarativeBase
-from app.models.user import User          # noqa: F401 — registers users table
-from app.models.department import Department  # noqa: F401 — registers departments table
-from app.models.employee import Employee  # noqa: F401 — registers employees table
-from app.models.audit_log import AuditLog  # noqa: F401 — registers audit_logs table
-from app.models.attendance import Attendance  # noqa: F401 — registers attendances table
-from app.models.leave import LeaveRequest, LeaveBalance  # noqa: F401 — registers leave_requests and leave_balances tables
+from app.models.user import User          # noqa: F401
+from app.models.department import Department  # noqa: F401
+from app.models.employee import Employee  # noqa: F401
+from app.models.audit_log import AuditLog  # noqa: F401
+from app.models.attendance import Attendance  # noqa: F401
+from app.models.leave import LeaveRequest, LeaveBalance  # noqa: F401
+from app.models.payroll import PayrollPeriod, PayrollRecord  # noqa: F401
+from app.models.notification import Notification  # noqa: F401
+
 
 # ---------------------------------------------------------------------------
 # Alembic Config object (gives access to values in alembic.ini)

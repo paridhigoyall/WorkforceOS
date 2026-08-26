@@ -18,7 +18,10 @@ from app.schemas.insights import (
     DepartmentInsights,
     AIPredictionDataset,
     AIPredictionDatasetRow,
+    TurnoverRiskOverview,
+    EmployeeTurnoverRiskDetail,
 )
+
 
 
 class InsightsService:
@@ -259,3 +262,177 @@ class InsightsService:
             generated_at=datetime.now(timezone.utc),
             data=dataset_rows,
         )
+
+    async def get_turnover_risk_overview(self) -> TurnoverRiskOverview:
+        """Calculate workforce attrition flight risks, driver breakdowns, and HR retention interventions."""
+        emp_stmt = (
+            select(Employee)
+            .where(Employee.is_deleted == False)  # noqa: E712
+            .options(selectinload(Employee.user), selectinload(Employee.department))
+        )
+        emp_res = await self.db_session.execute(emp_stmt)
+        employees = list(emp_res.scalars().all())
+
+        if not employees:
+            return TurnoverRiskOverview(
+                total_evaluated=0,
+                low_risk_count=0,
+                medium_risk_count=0,
+                high_risk_count=0,
+                critical_risk_count=0,
+                average_workforce_risk_score=0.0,
+                highest_risk_employees=[],
+                department_risk_summary={},
+            )
+
+        evaluated_list: List[EmployeeTurnoverRiskDetail] = []
+        dept_scores: Dict[str, List[float]] = {}
+
+        today = date.today()
+
+        for emp in employees:
+            detail = await self._calculate_employee_flight_risk(emp, today)
+            evaluated_list.append(detail)
+
+            dept_name = emp.department.name if emp.department else "Unassigned"
+            dept_scores.setdefault(dept_name, []).append(detail.risk_score)
+
+        # Sort highest risk first
+        evaluated_list.sort(key=lambda x: x.risk_score, reverse=True)
+
+        low = sum(1 for e in evaluated_list if e.risk_level == "LOW")
+        med = sum(1 for e in evaluated_list if e.risk_level == "MEDIUM")
+        high = sum(1 for e in evaluated_list if e.risk_level == "HIGH")
+        crit = sum(1 for e in evaluated_list if e.risk_level == "CRITICAL")
+
+        avg_score = sum(e.risk_score for e in evaluated_list) / len(evaluated_list)
+
+        dept_summary = {
+            d: round(sum(scores) / len(scores), 1)
+            for d, scores in dept_scores.items()
+        }
+
+        return TurnoverRiskOverview(
+            total_evaluated=len(evaluated_list),
+            low_risk_count=low,
+            medium_risk_count=med,
+            high_risk_count=high,
+            critical_risk_count=crit,
+            average_workforce_risk_score=round(avg_score, 1),
+            highest_risk_employees=evaluated_list[:10],
+            department_risk_summary=dept_summary,
+        )
+
+    async def get_employee_turnover_risk(self, employee_id: UUID) -> EmployeeTurnoverRiskDetail:
+        """Deep dive flight risk analysis for a single employee."""
+        emp_stmt = (
+            select(Employee)
+            .where(Employee.id == employee_id, Employee.is_deleted == False)  # noqa: E712
+            .options(selectinload(Employee.user), selectinload(Employee.department))
+        )
+        emp_res = await self.db_session.execute(emp_stmt)
+        emp = emp_res.scalar_one_or_none()
+        if not emp:
+            raise ValueError(f"Employee '{employee_id}' not found.")
+
+        return await self._calculate_employee_flight_risk(emp, date.today())
+
+    async def _calculate_employee_flight_risk(self, emp: Employee, today: date) -> EmployeeTurnoverRiskDetail:
+        """Internal multi-dimensional flight risk scorer."""
+        tenure_days = (today - emp.hire_date).days
+
+        # Attendance metrics
+        att_stmt = select(Attendance).where(Attendance.employee_id == emp.id)
+        att_res = await self.db_session.execute(att_stmt)
+        attendances = list(att_res.scalars().all())
+
+        total_att = len(attendances)
+        att_rate = 100.0
+        late_rate = 0.0
+        total_ot = 0.0
+
+        if total_att > 0:
+            present_or_late = sum(
+                1 for r in attendances if r.attendance_status in (AttendanceStatus.PRESENT, AttendanceStatus.LATE)
+            )
+            att_rate = (present_or_late / total_att) * 100.0
+            late_count = sum(1 for r in attendances if r.attendance_status == AttendanceStatus.LATE)
+            late_rate = (late_count / total_att) * 100.0
+            total_ot = sum(max(0.0, float(r.total_hours) - 8.0) for r in attendances)
+
+        # Leave metrics
+        leave_stmt = select(LeaveRequest).where(LeaveRequest.employee_id == emp.id)
+        leave_res = await self.db_session.execute(leave_stmt)
+        leaves = list(leave_res.scalars().all())
+        leave_requests_count = len(leaves)
+
+        # Compute Risk Score & Risk Drivers
+        score = 15.0  # baseline natural turnover propensity
+        drivers = []
+        actions = []
+
+        # 1. Overtime Burnout Factor (Weight: up to 35 pts)
+        if total_ot >= 20.0:
+            score += 35.0
+            drivers.append(f"Severe Overtime Overload ({total_ot:.1f} hrs OT)")
+            actions.append("Workload rebalancing & mandatory compensatory rest days")
+        elif total_ot >= 10.0:
+            score += 20.0
+            drivers.append(f"Elevated Overtime ({total_ot:.1f} hrs OT)")
+            actions.append("Review project resource allocations")
+
+        # 2. Disengagement & Lateness Factor (Weight: up to 30 pts)
+        if late_rate >= 35.0:
+            score += 30.0
+            drivers.append(f"Chronic Lateness Pattern ({late_rate:.0f}% late check-ins)")
+            actions.append("1-on-1 check-in & flexible work hours consultation")
+        elif late_rate >= 15.0:
+            score += 15.0
+            drivers.append(f"Frequent Late Arrivals ({late_rate:.0f}% late rate)")
+            actions.append("Schedule informal pulse check with manager")
+
+        # 3. Attendance Irregularity (Weight: up to 25 pts)
+        if att_rate < 75.0:
+            score += 25.0
+            drivers.append(f"Significant Absenteeism ({att_rate:.0f}% attendance rate)")
+            actions.append("Investigate potential health or workplace friction issues")
+        elif att_rate < 85.0:
+            score += 12.0
+            drivers.append(f"Moderate Attendance Dip ({att_rate:.0f}%)")
+
+        # 4. Tenure Flight Zone (Weight: up to 15 pts)
+        if 90 <= tenure_days <= 240 and leave_requests_count >= 3:
+            score += 15.0
+            drivers.append(f"Mid-Probation/Early Tenure Flight Window ({tenure_days} days)")
+            actions.append("Quarterly career progression & mentorship check-in")
+
+        # Clamp score between 5.0 and 98.0
+        score = max(5.0, min(98.0, round(score, 1)))
+
+        if score >= 75.0:
+            risk_level = "CRITICAL"
+        elif score >= 55.0:
+            risk_level = "HIGH"
+        elif score >= 35.0:
+            risk_level = "MEDIUM"
+        else:
+            risk_level = "LOW"
+
+        if not actions:
+            actions.append("Maintain standard quarterly recognition and feedback cadence")
+
+        return EmployeeTurnoverRiskDetail(
+            employee_id=emp.id,
+            employee_email=emp.user.email if emp.user else None,
+            department_name=emp.department.name if emp.department else "Unassigned",
+            risk_score=score,
+            risk_level=risk_level,
+            tenure_days=tenure_days,
+            attendance_rate=round(att_rate, 1),
+            late_rate=round(late_rate, 1),
+            overtime_hours=round(total_ot, 1),
+            leave_requests_count=leave_requests_count,
+            primary_risk_drivers=drivers or ["No anomalous flight indicators detected"],
+            recommended_interventions=actions,
+        )
+

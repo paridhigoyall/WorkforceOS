@@ -1,26 +1,17 @@
-from typing import List, Tuple
+from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.api.dependencies.auth import get_current_user
-from app.models.user import User  # Assuming User model has a 'role' field
+from app.api.dependencies.auth import get_current_user, require_admin
+from app.models.user import User
 from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentResponse
 from app.services.department_service import DepartmentService
 
 router = APIRouter(prefix="/departments", tags=["Departments"])
 
 
-# Admin privilege verification dependency
-def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    # Check if the user has admin role (adjust attribute names as per your User model schema)
-    if not hasattr(current_user, "role") or getattr(current_user, "role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access forbidden: Admin role is required to perform this action."
-        )
-    return current_user
 
 
 @router.post(

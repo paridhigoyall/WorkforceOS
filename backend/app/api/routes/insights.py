@@ -12,10 +12,44 @@ from app.schemas.insights import (
     LeaveInsights,
     DepartmentInsights,
     AIPredictionDataset,
+    TurnoverRiskOverview,
+    EmployeeTurnoverRiskDetail,
 )
 from app.services.insights_service import InsightsService
 
 router = APIRouter(prefix="/insights", tags=["Insights"])
+
+
+@router.get(
+    "/turnover-risk",
+    response_model=TurnoverRiskOverview,
+    summary="Get workforce turnover risk overview and predictions",
+    description="Calculates flight risk percentiles, attrition drivers, and HR retention interventions. Admin and HR only.",
+)
+async def get_turnover_risk_overview(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.HR])),
+):
+    service = InsightsService(db)
+    return await service.get_turnover_risk_overview()
+
+
+@router.get(
+    "/turnover-risk/{employee_id}",
+    response_model=EmployeeTurnoverRiskDetail,
+    summary="Get individual employee flight risk diagnosis",
+    description="Detailed flight risk diagnosis with burnout drivers and tailored retention steps.",
+)
+async def get_employee_turnover_risk(
+    employee_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.HR])),
+):
+    service = InsightsService(db)
+    try:
+        return await service.get_employee_turnover_risk(employee_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get(
@@ -74,3 +108,4 @@ async def get_ai_prediction_dataset(
 ):
     service = InsightsService(db)
     return await service.get_ai_prediction_dataset()
+

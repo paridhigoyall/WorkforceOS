@@ -186,6 +186,19 @@ class LeaveService:
             )
             self.db_session.add(audit)
 
+            # Create in-app notification for employee
+            emp = await self._require_employee(db_leave.employee_id)
+            if emp.user_id:
+                from app.models.notification import Notification, NotificationType
+                notif = Notification(
+                    user_id=emp.user_id,
+                    title="Leave Request Approved",
+                    message=f"Your {db_leave.leave_type.value} leave request for {db_leave.start_date} to {db_leave.end_date} ({db_leave.total_days} days) has been approved.",
+                    type=NotificationType.LEAVE,
+                    link="/leave",
+                )
+                self.db_session.add(notif)
+
         return db_leave
 
     # ------------------------------------------------------------------
@@ -242,6 +255,19 @@ class LeaveService:
                 },
             )
             self.db_session.add(audit)
+
+            # Create in-app notification for employee
+            emp = await self._require_employee(db_leave.employee_id)
+            if emp.user_id:
+                from app.models.notification import Notification, NotificationType
+                notif = Notification(
+                    user_id=emp.user_id,
+                    title="Leave Request Rejected",
+                    message=f"Your {db_leave.leave_type.value} leave request for {db_leave.start_date} to {db_leave.end_date} has been rejected.",
+                    type=NotificationType.LEAVE,
+                    link="/leave",
+                )
+                self.db_session.add(notif)
 
         return db_leave
 

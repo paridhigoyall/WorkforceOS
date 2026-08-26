@@ -12,26 +12,70 @@ import type {
   AIPredictionDataset,
   AuditLogListResponse,
   PayrollPeriod,
-  PayslipDetail
+  PayslipDetail,
+  Notification,
+  MFASetupResponse,
+  TokenResponse,
+  TurnoverRiskOverview,
+  EmployeeTurnoverRiskDetail,
 } from '../types';
 
 
 export const authApi = {
-  login: async (username: string, password: string) => {
+  login: async (username: string, password: string): Promise<TokenResponse> => {
     const formData = new URLSearchParams();
     formData.append('username', username);
     formData.append('password', password);
-    const response = await apiClient.post<{ access_token: string; token_type: string }>('/auth/login', formData, {
+    const response = await apiClient.post<TokenResponse>('/auth/login', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
     return response.data;
   },
+  verifyMfa: async (mfa_token: string, code: string): Promise<TokenResponse> => {
+    const response = await apiClient.post<TokenResponse>('/auth/mfa/verify', { mfa_token, code });
+    return response.data;
+  },
+  setupMfa: async (): Promise<MFASetupResponse> => {
+    const response = await apiClient.post<MFASetupResponse>('/auth/mfa/setup');
+    return response.data;
+  },
+  enableMfa: async (data: { password: string; code: string }) => {
+    const response = await apiClient.post<{ status: string; message: string }>('/auth/mfa/enable', data);
+    return response.data;
+  },
+  disableMfa: async (data: { password: string; code: string }) => {
+    const response = await apiClient.post<{ status: string; message: string }>('/auth/mfa/disable', data);
+    return response.data;
+  },
+  refreshToken: async (refresh_token: string) => {
+    const response = await apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>('/auth/refresh', { refresh_token });
+    return response.data;
+  },
   register: async (data: { email: string; password: string; role?: string }) => {
-    const response = await apiClient.post<{ user: User; access_token: string }>('/auth/register', data);
+    const response = await apiClient.post<{ user: User; access_token: string; refresh_token?: string }>('/auth/register', data);
     return response.data;
   },
   getMe: async () => {
     const response = await apiClient.get<User>('/auth/me');
+    return response.data;
+  }
+};
+
+export const notificationsApi = {
+  list: async (params?: { limit?: number; offset?: number; unread_only?: boolean; type?: string }) => {
+    const response = await apiClient.get<Notification[]>('/notifications', { params });
+    return response.data;
+  },
+  getUnreadCount: async () => {
+    const response = await apiClient.get<{ unread_count: number }>('/notifications/unread-count');
+    return response.data;
+  },
+  markAsRead: async (id: string) => {
+    const response = await apiClient.put<Notification>(`/notifications/${id}/read`);
+    return response.data;
+  },
+  markAllAsRead: async () => {
+    const response = await apiClient.put<{ status: string; marked_read_count: number }>('/notifications/read-all');
     return response.data;
   }
 };
@@ -142,7 +186,15 @@ export const insightsApi = {
     return response.data;
   },
   getAIPredictions: async () => {
-    const response = await apiClient.get<AIPredictionDataset>('/insights/ai-prediction-dataset');
+    const response = await apiClient.get<AIPredictionDataset>('/insights/ai-dataset');
+    return response.data;
+  },
+  getTurnoverRiskOverview: async () => {
+    const response = await apiClient.get<TurnoverRiskOverview>('/insights/turnover-risk');
+    return response.data;
+  },
+  getEmployeeTurnoverRisk: async (employeeId: string) => {
+    const response = await apiClient.get<EmployeeTurnoverRiskDetail>(`/insights/turnover-risk/${employeeId}`);
     return response.data;
   }
 };
@@ -176,4 +228,5 @@ export const payrollApi = {
     return response.data;
   }
 };
+
 

@@ -201,6 +201,20 @@ class PayrollService:
             details={"year": period.year, "month": period.month, "total_net_pay": float(period.total_net_pay)}
         )
         self.db.add(audit)
+
+        # Dispatch in-app notification to all participating employees
+        from app.models.notification import Notification, NotificationType
+        for rec in period.records:
+            if rec.employee and rec.employee.user_id:
+                notif = Notification(
+                    user_id=rec.employee.user_id,
+                    title="Payslip Ready",
+                    message=f"Your payslip for {period.year}-{period.month:02d} (Net Pay: ${rec.net_pay:,.2f}) is now available.",
+                    type=NotificationType.PAYROLL,
+                    link="/payroll",
+                )
+                self.db.add(notif)
+
         await self.db.commit()
 
         reloaded = await self.repo.get_period_by_id(period.id)

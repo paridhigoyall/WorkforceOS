@@ -83,6 +83,53 @@ def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+import pyotp
+
+# MFA / TOTP Configuration
+MFA_ISSUER_NAME = os.getenv("MFA_ISSUER_NAME", "WorkforceOS")
+MFA_CHALLENGE_EXPIRE_MINUTES = int(os.getenv("MFA_CHALLENGE_EXPIRE_MINUTES", "5"))
+
+
+def generate_mfa_secret() -> str:
+    """Generate a cryptographically random base32 TOTP secret key."""
+    return pyotp.random_base32()
+
+
+def get_totp_uri(secret: str, email: str) -> str:
+    """Generate an otpauth:// provisioning URI for QR code generation."""
+    totp = pyotp.TOTP(secret)
+    return totp.provisioning_uri(name=email, issuer_name=MFA_ISSUER_NAME)
+
+
+def verify_totp_code(secret: str, code: str) -> bool:
+    """Verify a 6-digit TOTP code against a base32 secret.
+    
+    Includes a 1-step window (±30s) to handle minor clock skew.
+    """
+    if not secret or not code:
+        return False
+    # Remove any whitespaces
+    sanitized_code = code.strip().replace(" ", "")
+    if len(sanitized_code) != 6 or not sanitized_code.isdigit():
+        return False
+    totp = pyotp.TOTP(secret)
+    return totp.verify(sanitized_code, valid_window=1)
+
+
+def create_mfa_challenge_token(data: Dict[str, Any]) -> str:
+    """Create a short-lived temporary token for completing the 2FA login challenge."""
+    to_encode = data.copy()
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=MFA_CHALLENGE_EXPIRE_MINUTES)
+    to_encode.update({
+        "exp": int(expire.timestamp()),
+        "iat": int(now.timestamp()),
+        "nbf": int(now.timestamp()),
+        "type": "mfa_challenge"
+    })
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
 def decode_token(token: str) -> Dict[str, Any]:
     """Decode and validate a JWT.
     
@@ -92,3 +139,4 @@ def decode_token(token: str) -> Dict[str, Any]:
     """
     # jwt.decode automatically validates expiration ('exp'), issued at ('iat'), and not before ('nbf')
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+

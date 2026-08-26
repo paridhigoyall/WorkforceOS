@@ -54,3 +54,30 @@ class AIPredictionDataset(BaseModel):
     data: List[AIPredictionDatasetRow]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class EmployeeTurnoverRiskDetail(BaseModel):
+    employee_id: UUID
+    employee_email: Optional[str] = None
+    department_name: Optional[str] = None
+    risk_score: float = Field(..., description="Calculated flight risk percentage from 0 to 100")
+    risk_level: str = Field(..., description="Risk tier: LOW, MEDIUM, HIGH, or CRITICAL")
+    tenure_days: int
+    attendance_rate: float
+    late_rate: float
+    overtime_hours: float
+    leave_requests_count: int
+    primary_risk_drivers: List[str] = Field(default_factory=list, description="Specific indicators causing risk score elevations")
+    recommended_interventions: List[str] = Field(default_factory=list, description="Actionable retention recommendations for HR")
+
+
+class TurnoverRiskOverview(BaseModel):
+    total_evaluated: int
+    low_risk_count: int
+    medium_risk_count: int
+    high_risk_count: int
+    critical_risk_count: int
+    average_workforce_risk_score: float
+    highest_risk_employees: List[EmployeeTurnoverRiskDetail]
+    department_risk_summary: Dict[str, float]
+

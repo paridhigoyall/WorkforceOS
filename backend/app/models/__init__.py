@@ -8,6 +8,7 @@ from app.models.audit_log import AuditLog
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.leave import LeaveRequest, LeaveType, LeaveStatus, LeaveBalance
 from app.models.payroll import PayrollPeriod, PayrollPeriodStatus, PayrollRecord, PayrollRecordStatus
+from app.models.notification import Notification, NotificationType
 
 __all__ = [
     "Base",
@@ -29,5 +30,8 @@ __all__ = [
     "PayrollPeriodStatus",
     "PayrollRecord",
     "PayrollRecordStatus",
+    "Notification",
+    "NotificationType",
 ]
+
 

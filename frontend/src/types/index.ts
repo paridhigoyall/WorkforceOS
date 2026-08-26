@@ -4,9 +4,36 @@ export interface User {
   id: string;
   email: string;
   role: UserRole;
+  is_mfa_enabled?: boolean;
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface MFASetupResponse {
+  secret: string;
+  otpauth_url: string;
+}
+
+export interface TokenResponse {
+  access_token?: string;
+  refresh_token?: string;
+  token_type: string;
+  mfa_required?: boolean;
+  mfa_token?: string;
+}
+
+export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'leave' | 'attendance' | 'payroll';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  link?: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface Department {
@@ -118,6 +145,32 @@ export interface AIPredictionDataset {
   data: AIPredictionRow[];
 }
 
+export interface EmployeeTurnoverRiskDetail {
+  employee_id: string;
+  employee_email?: string;
+  department_name?: string;
+  risk_score: number;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  tenure_days: number;
+  attendance_rate: number;
+  late_rate: number;
+  overtime_hours: number;
+  leave_requests_count: number;
+  primary_risk_drivers: string[];
+  recommended_interventions: string[];
+}
+
+export interface TurnoverRiskOverview {
+  total_evaluated: number;
+  low_risk_count: number;
+  medium_risk_count: number;
+  high_risk_count: number;
+  critical_risk_count: number;
+  average_workforce_risk_score: number;
+  highest_risk_employees: EmployeeTurnoverRiskDetail[];
+  department_risk_summary: Record<string, number>;
+}
+
 export interface AuditLogEntry {
   id: string;
   user_id: string;
@@ -186,4 +239,5 @@ export interface PayslipDetail {
   status: 'PENDING' | 'PAID';
   generated_at: string;
 }
+
 

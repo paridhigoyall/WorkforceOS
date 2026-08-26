@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Lock, Mail, UserPlus, LogIn, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Zap, Lock, Mail, UserPlus, LogIn, Eye, EyeOff, ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,6 +20,10 @@ export const Login: React.FC = () => {
   const { login } = useAuth();
 
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isMfaStep, setIsMfaStep] = useState(false);
+  const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('staff');
@@ -28,8 +32,15 @@ export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const emailRef = useRef<HTMLInputElement>(null);
+  const mfaInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { emailRef.current?.focus(); }, []);
+  useEffect(() => {
+    if (isMfaStep) {
+      mfaInputRef.current?.focus();
+    } else {
+      emailRef.current?.focus();
+    }
+  }, [isMfaStep]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,19 +49,41 @@ export const Login: React.FC = () => {
     try {
       if (isRegistering) {
         const res = await authApi.register({ email, password, role });
-        login(res.access_token, res.user);
+        login(res.access_token, res.user, res.refresh_token);
+        navigate('/');
+      } else if (isMfaStep && mfaChallengeToken) {
+        const verifyRes = await authApi.verifyMfa(mfaChallengeToken, mfaCode);
+        if (verifyRes.access_token) {
+          localStorage.setItem('workforce_token', verifyRes.access_token);
+          const userRes = await authApi.getMe();
+          login(verifyRes.access_token, userRes, verifyRes.refresh_token);
+          navigate('/');
+        }
       } else {
         const tokenRes = await authApi.login(email, password);
-        localStorage.setItem('workforce_token', tokenRes.access_token);
-        const userRes = await authApi.getMe();
-        login(tokenRes.access_token, userRes);
+        if (tokenRes.mfa_required && tokenRes.mfa_token) {
+          setIsMfaStep(true);
+          setMfaChallengeToken(tokenRes.mfa_token);
+          setError(null);
+        } else if (tokenRes.access_token) {
+          localStorage.setItem('workforce_token', tokenRes.access_token);
+          const userRes = await authApi.getMe();
+          login(tokenRes.access_token, userRes, tokenRes.refresh_token);
+          navigate('/');
+        }
       }
-      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Authentication failed. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBackToLogin = () => {
+    setIsMfaStep(false);
+    setMfaChallengeToken(null);
+    setMfaCode('');
+    setError(null);
   };
 
   return (
@@ -184,115 +217,204 @@ export const Login: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Email */}
-            <div>
-              <label className="input-label">Email Address</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  ref={emailRef}
-                  id="login-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="input-field"
-                  style={{ paddingLeft: '42px' }}
-                  autoComplete="email"
-                />
-                <Mail size={16} color="var(--text-dim)" style={{
-                  position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none',
-                }} />
-              </div>
-            </div>
+            {isMfaStep ? (
+              /* MFA TOTP Step */
+              <div style={{ animation: 'fadeInUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <div style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  border: '1px solid rgba(99, 102, 241, 0.2)',
+                  textAlign: 'center',
+                }}>
+                  <KeyRound size={28} color="var(--primary)" style={{ margin: '0 auto 8px' }} />
+                  <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
+                    Two-Factor Authentication
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                    Enter the 6-digit verification code from your authenticator app.
+                  </div>
+                </div>
 
-            {/* Password */}
-            <div>
-              <label className="input-label">Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••••"
-                  className="input-field"
-                  style={{ paddingLeft: '42px', paddingRight: '42px' }}
-                  autoComplete={isRegistering ? 'new-password' : 'current-password'}
-                />
-                <Lock size={16} color="var(--text-dim)" style={{
-                  position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none',
-                }} />
+                <div>
+                  <label className="input-label">Authentication Code</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      ref={mfaInputRef}
+                      id="login-mfa-code"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      required
+                      value={mfaCode}
+                      onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000"
+                      className="input-field"
+                      style={{
+                        paddingLeft: '16px',
+                        fontSize: '1.25rem',
+                        letterSpacing: '6px',
+                        textAlign: 'center',
+                        fontWeight: 700,
+                      }}
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  id="login-mfa-submit"
+                  type="submit"
+                  disabled={loading || mfaCode.length !== 6}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '13px', fontSize: '0.9375rem', marginTop: '4px' }}
+                >
+                  {loading ? (
+                    <span className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }} />
+                  ) : (
+                    <>
+                      <ShieldCheck size={18} />
+                      <span>Verify & Continue</span>
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword(v => !v)}
+                  onClick={handleBackToLogin}
                   style={{
-                    position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)',
-                    display: 'flex', alignItems: 'center', padding: '4px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.8125rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
                   }}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  <ArrowLeft size={14} />
+                  <span>Cancel & Back to Email Login</span>
                 </button>
               </div>
-            </div>
+            ) : (
+              /* Standard Email + Password Fields */
+              <>
+                {/* Email */}
+                <div>
+                  <label className="input-label">Email Address</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      ref={emailRef}
+                      id="login-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="input-field"
+                      style={{ paddingLeft: '42px' }}
+                      autoComplete="email"
+                    />
+                    <Mail size={16} color="var(--text-dim)" style={{
+                      position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none',
+                    }} />
+                  </div>
+                </div>
 
-            {/* Role selector (register only) */}
-            {isRegistering && (
-              <div style={{ animation: 'fadeInUp 0.3s ease' }}>
-                <label className="input-label">Account Role</label>
-                <select
-                  value={role}
-                  onChange={e => setRole(e.target.value)}
-                  className="input-field"
+                {/* Password */}
+                <div>
+                  <label className="input-label">Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••••"
+                      className="input-field"
+                      style={{ paddingLeft: '42px', paddingRight: '42px' }}
+                      autoComplete={isRegistering ? 'new-password' : 'current-password'}
+                    />
+                    <Lock size={16} color="var(--text-dim)" style={{
+                      position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none',
+                    }} />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword(v => !v)}
+                      style={{
+                        position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)',
+                        display: 'flex', alignItems: 'center', padding: '4px',
+                      }}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Role selector (register only) */}
+                {isRegistering && (
+                  <div style={{ animation: 'fadeInUp 0.3s ease' }}>
+                    <label className="input-label">Account Role</label>
+                    <select
+                      value={role}
+                      onChange={e => setRole(e.target.value)}
+                      className="input-field"
+                    >
+                      <option value="admin">Administrator</option>
+                      <option value="hr">HR Manager</option>
+                      <option value="staff">Staff Member</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Submit */}
+                <button
+                  id="login-submit"
+                  type="submit"
+                  disabled={loading}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '13px', fontSize: '0.9375rem', marginTop: '6px' }}
                 >
-                  <option value="admin">Administrator</option>
-                  <option value="hr">HR Manager</option>
-                  <option value="staff">Staff Member</option>
-                </select>
-              </div>
+                  {loading ? (
+                    <span className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }} />
+                  ) : (
+                    <>
+                      {isRegistering ? <UserPlus size={17} /> : <LogIn size={17} />}
+                      <span>{isRegistering ? 'Create Account' : 'Sign In to Workspace'}</span>
+                    </>
+                  )}
+                </button>
+              </>
             )}
-
-            {/* Submit */}
-            <button
-              id="login-submit"
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '13px', fontSize: '0.9375rem', marginTop: '6px' }}
-            >
-              {loading ? (
-                <><span className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }} /></>
-              ) : (
-                <>
-                  {isRegistering ? <UserPlus size={17} /> : <LogIn size={17} />}
-                  <span>{isRegistering ? 'Create Account' : 'Sign In to Workspace'}</span>
-                </>
-              )}
-            </button>
           </form>
 
           {/* Toggle */}
-          <div style={{ marginTop: '24px', textAlign: 'center' }}>
-            <button
-              onClick={() => { setIsRegistering(v => !v); setError(null); }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--accent-cyan)',
-                fontSize: '0.8125rem',
-                cursor: 'pointer',
-                fontWeight: 600,
-                transition: 'opacity 0.2s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
-              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-            >
-              {isRegistering ? '← Back to Sign In' : 'Need an account? Register →'}
-            </button>
-          </div>
+          {!isMfaStep && (
+            <div style={{ marginTop: '24px', textAlign: 'center' }}>
+              <button
+                onClick={() => { setIsRegistering(v => !v); setError(null); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-cyan)',
+                  fontSize: '0.8125rem',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'opacity 0.2s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+              >
+                {isRegistering ? '← Back to Sign In' : 'Need an account? Register →'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
