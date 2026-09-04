@@ -17,8 +17,8 @@ import {
   Copy,
 } from 'lucide-react';
 import { attendanceApi, notificationsApi, authApi } from '../../api/endpoints';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/useAuth';
+import { useToast } from '../../context/useToast';
 import type { Notification, MFASetupResponse } from '../../types';
 
 export const TopBar: React.FC = () => {
@@ -219,7 +219,7 @@ export const TopBar: React.FC = () => {
       <header style={{
         height: '68px',
         borderBottom: '1px solid var(--glass-border)',
-        background: 'rgba(7, 11, 20, 0.85)',
+        background: 'rgba(19, 14, 12, 0.88)',
         backdropFilter: 'blur(20px)',
         display: 'flex',
         alignItems: 'center',
@@ -375,11 +375,11 @@ export const TopBar: React.FC = () => {
                   right: 0,
                   width: '360px',
                   maxHeight: '440px',
-                  background: 'rgba(10, 15, 28, 0.96)',
+                  background: 'rgba(29, 21, 18, 0.98)',
                   backdropFilter: 'blur(24px)',
                   border: '1px solid var(--glass-border-hover)',
                   borderRadius: 'var(--radius-lg)',
-                  boxShadow: '0 20px 48px rgba(0,0,0,0.6), 0 0 32px rgba(99,102,241,0.15)',
+                  boxShadow: '0 20px 48px rgba(15,11,9,0.7), 0 0 32px rgba(184,155,251,0.20)',
                   display: 'flex',
                   flexDirection: 'column',
                   overflow: 'hidden',
@@ -569,10 +569,10 @@ export const TopBar: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '520px',
-              background: 'rgba(10, 15, 28, 0.98)',
+              background: 'rgba(32, 23, 20, 0.98)',
               border: '1px solid var(--glass-border-hover)',
               borderRadius: 'var(--radius-xl)',
-              boxShadow: '0 32px 64px rgba(0,0,0,0.8), 0 0 48px rgba(99,102,241,0.15)',
+              boxShadow: '0 32px 64px rgba(15,11,9,0.85), 0 0 48px rgba(184,155,251,0.20)',
               padding: '32px',
               position: 'relative',
             }}

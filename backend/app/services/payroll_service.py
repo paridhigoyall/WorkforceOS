@@ -220,6 +220,16 @@ class PayrollService:
         reloaded = await self.repo.get_period_by_id(period.id)
         return self._to_period_response(reloaded)
 
+    async def get_my_payslips(
+        self,
+        employee_id: UUID,
+        limit: int = 12,
+        offset: int = 0
+    ) -> List[PayslipDetailResponse]:
+        """Return all payslips for an employee, newest first."""
+        records = await self.repo.get_records_by_employee_id(employee_id, limit=limit, offset=offset)
+        return [await self.get_payslip(r.id) for r in records]
+
     async def get_payslip(self, record_id: UUID) -> PayslipDetailResponse:
         """Generate comprehensive printable digital payslip."""
         record = await self.repo.get_record_by_id(record_id)

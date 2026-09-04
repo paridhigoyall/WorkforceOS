@@ -6,6 +6,13 @@ on:
       - 'v*.*.*'
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Execute remote server deployment via SSH (requires DEPLOY_SSH_* secrets)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -16,10 +23,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
-    name: Build Multi-User Production Containers & Deploy
+  build-and-push:
+    name: Build, Scan & Push (${{ matrix.service }})
     runs-on: ubuntu-latest
     environment: production
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            image_suffix: backend
+          - service: frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+            image_suffix: frontend
     steps:
       - name: Checkout Codebase
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -34,56 +53,101 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Backend Image with SBOM & SLSA Provenance
+      - name: Build and Push ${{ matrix.service }} Container Image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
           sbom: true
           provenance: true
           tags: |
-            ghcr.io/${{ github.repository }}/backend:latest
-            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/${{ matrix.image_suffix }}:latest
+            ghcr.io/${{ github.repository }}/${{ matrix.image_suffix }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and Push Frontend Image with SBOM & SLSA Provenance
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          sbom: true
-          provenance: true
-          tags: |
-            ghcr.io/${{ github.repository }}/frontend:latest
-            ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Scan Backend Container Image for Vulnerabilities (Trivy)
+      - name: Vulnerability Scan ${{ matrix.service }} (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
+          image-ref: 'ghcr.io/${{ github.repository }}/${{ matrix.image_suffix }}:${{ github.sha }}'
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      - name: Scan Frontend Container Image for Vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: 'ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Production Deployment Hook Notification
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+  deploy-notify:
+    name: Production Release Published (GHCR)
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Log Published Images
         run: |
-          echo "Production deployment container release ghcr.io/${{ github.repository }} SHA ${{ github.sha }} successfully published."
-          echo "Triggering automated remote deployment orchestration..."
+          echo "Production images built, scanned, and published to GHCR:"
+          echo "  - ghcr.io/${{ github.repository }}/backend:${{ github.sha }}"
+          echo "  - ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}"
+          echo "Ready for deployment via manual workflow dispatch or automated webhook."
+
+  deploy-production:
+    name: Production Deployment (SSH / Compose Orchestration)
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    environment: production
+    # Gated to manual dispatch with deploy=true until deployment host secrets (DEPLOY_SSH_*) are configured
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == true
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Deploy to Production Server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY: ghcr.io/${{ github.repository }}
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
+          envs: IMAGE_TAG,REGISTRY
+          script: |
+            set -e
+            echo "==> Deploying WorkforceOS (Commit SHA: $IMAGE_TAG)..."
+            cd ${{ secrets.DEPLOY_PATH || '/opt/workforceos' }}
+
+            # Authenticate to GHCR on host
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull images pinned to git commit SHA
+            echo "==> Pulling immutable image release ($IMAGE_TAG)..."
+            docker pull ${REGISTRY}/backend:${IMAGE_TAG}
+            docker pull ${REGISTRY}/frontend:${IMAGE_TAG}
+
+            # Tag locally for compose references
+            docker tag ${REGISTRY}/backend:${IMAGE_TAG} workforceos-backend:latest
+            docker tag ${REGISTRY}/frontend:${IMAGE_TAG} workforceos-frontend:latest
+
+            # Run database migrations safely (isolated one-off runner)
+            echo "==> Executing database migrations..."
+            docker compose run --rm migration
+
+            # Perform zero-downtime rolling restart of backend and frontend services
+            echo "==> Recreating service containers..."
+            docker compose up -d --no-deps --scale backend=3 backend
+            docker compose up -d --no-deps frontend nginx
+
+            # Healthcheck validation probe
+            echo "==> Running healthcheck validation probe..."
+            for i in $(seq 1 10); do
+              if curl -s -f http://localhost/health | grep -q '"status":"healthy"'; then
+                echo "==> Production healthcheck PASSED on attempt $i!"
+                exit 0
+              fi
+              echo "Waiting for healthcheck to pass ($i/10)..."
+              sleep 3
+            done
+
+            echo "==> Healthcheck FAILED! Deployment verification did not pass."
+            exit 1

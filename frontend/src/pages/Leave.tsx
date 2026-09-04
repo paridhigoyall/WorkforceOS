@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Plus, CheckCircle2, XCircle } from 'lucide-react';
 import { leaveApi } from '../api/endpoints';
 import type { LeaveRequest, LeaveBalance } from '../types';
@@ -12,14 +12,14 @@ export const Leave: React.FC = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [leaveType, setLeaveType] = useState<string>('ANNUAL');
+  const [leaveType, setLeaveType] = useState<string>('Casual');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  const fetchLeaveData = async () => {
+  const fetchLeaveData = useCallback(async () => {
     try {
       setLoading(true);
       const [reqData, balData] = await Promise.all([
@@ -33,11 +33,11 @@ export const Leave: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchLeaveData();
-  }, [statusFilter]);
+  }, [fetchLeaveData]);
 
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,11 +250,10 @@ export const Leave: React.FC = () => {
               onChange={(e) => setLeaveType(e.target.value)}
               className="input-field"
             >
-              <option value="ANNUAL">Annual Leave</option>
-              <option value="SICK">Sick Leave</option>
-              <option value="CASUAL">Casual Leave</option>
-              <option value="MATERNITY">Maternity / Paternity Leave</option>
-              <option value="UNPAID">Unpaid Leave</option>
+              <option value="Casual">Casual Leave</option>
+              <option value="Sick">Sick Leave</option>
+              <option value="Earned">Earned Leave</option>
+              <option value="Unpaid">Unpaid Leave</option>
             </select>
           </div>
 

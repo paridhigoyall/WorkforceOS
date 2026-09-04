@@ -109,7 +109,7 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 
 # ─── Trusted Host (blocks Host header injection) ────────────────────────────
-_trusted = os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1,*")
+_trusted = os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1,nginx")
 TRUSTED_HOSTS = [h.strip() for h in _trusted.split(",") if h.strip()]
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=TRUSTED_HOSTS)
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, Lock, Mail, UserPlus, LogIn, Eye, EyeOff, ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/endpoints';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 /* Floating particle config */
 const PARTICLES = Array.from({ length: 30 }, (_, i) => ({
@@ -95,7 +95,7 @@ export const Login: React.FC = () => {
       padding: '24px',
       position: 'relative',
       overflow: 'hidden',
-      background: 'radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.15) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(139,92,246,0.1) 0%, transparent 50%), var(--bg-dark)',
+      background: 'radial-gradient(ellipse at 25% 20%, rgba(184,155,251,0.14) 0%, transparent 50%), radial-gradient(ellipse at 75% 80%, rgba(217,155,108,0.12) 0%, transparent 50%), var(--bg-dark)',
     }}>
       {/* Background particles */}
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
@@ -109,7 +109,7 @@ export const Login: React.FC = () => {
               width: `${p.size}px`,
               height: `${p.size}px`,
               borderRadius: '50%',
-              background: p.id % 3 === 0 ? 'var(--primary)' : p.id % 3 === 1 ? 'var(--accent-cyan)' : 'var(--accent-purple)',
+              background: p.id % 3 === 0 ? 'var(--primary)' : p.id % 3 === 1 ? 'var(--wood-accent)' : 'var(--accent-lilac)',
               opacity: p.opacity,
               animation: `float ${p.duration}s ${p.delay}s ease-in-out infinite`,
             }}
@@ -120,8 +120,8 @@ export const Login: React.FC = () => {
           position: 'absolute',
           inset: 0,
           backgroundImage: `
-            linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)
+            linear-gradient(rgba(217,155,108,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(184,155,251,0.03) 1px, transparent 1px)
           `,
           backgroundSize: '64px 64px',
         }} />
@@ -138,11 +138,11 @@ export const Login: React.FC = () => {
         }}
       >
         <div style={{
-          background: 'rgba(10, 15, 28, 0.92)',
+          background: 'rgba(32, 23, 20, 0.94)',
           backdropFilter: 'blur(24px)',
           border: '1px solid var(--glass-border-hover)',
           borderRadius: 'var(--radius-xl)',
-          boxShadow: '0 32px 64px rgba(0,0,0,0.6), 0 0 48px rgba(99,102,241,0.1), inset 0 1px 0 rgba(255,255,255,0.06)',
+          boxShadow: '0 32px 64px rgba(15,11,9,0.7), 0 0 48px rgba(184,155,251,0.15), inset 0 1px 0 rgba(255,255,255,0.08)',
           padding: '40px',
         }}>
           {/* Brand */}
@@ -151,7 +151,7 @@ export const Login: React.FC = () => {
               width: '60px',
               height: '60px',
               borderRadius: '18px',
-              background: 'linear-gradient(135deg, var(--primary), var(--accent-purple))',
+              background: 'linear-gradient(135deg, var(--primary), var(--wood-accent))',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',

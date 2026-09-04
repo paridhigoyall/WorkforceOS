@@ -173,6 +173,7 @@ async def test_department(db_session: AsyncSession) -> Department:
     dept = Department(
         id=uuid4(),
         name=f"Engineering_{uuid4().hex[:6]}",
+        code=f"ENG{uuid4().hex[:3]}".upper(),
         description="Core Product Engineering",
     )
     db_session.add(dept)

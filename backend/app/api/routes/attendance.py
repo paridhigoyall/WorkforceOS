@@ -78,6 +78,42 @@ async def check_in(
 
 
 @router.post(
+    "/check-out",
+    response_model=AttendanceResponse,
+    summary="Record a check-out for active attendance",
+    description="Updates the active open attendance check-in record for an employee with a check-out time."
+)
+async def check_out_current(
+    payload: Optional[CheckOutRequest] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = AttendanceService(db)
+    is_privileged = current_user.role in (UserRole.ADMIN, UserRole.HR)
+
+    if payload and payload.employee_id is not None:
+        if not is_privileged:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: Only Administrators or HR can record check-out for other employees."
+            )
+        employee_id = payload.employee_id
+    else:
+        employee = await get_employee_for_user(db, current_user.id)
+        employee_id = employee.id
+
+    check_out_time = payload.check_out_time if payload else None
+
+    try:
+        return await service.check_out_active(employee_id, check_out_time)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post(
     "/{id}/check-out",
     response_model=AttendanceResponse,
     summary="Record a check-out",

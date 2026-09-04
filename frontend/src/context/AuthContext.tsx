@@ -1,18 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { User } from '../types';
 import { authApi } from '../api/endpoints';
-
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  login: (token: string, user: User, refreshToken?: string) => void;
-  logout: () => void;
-  refreshUser: () => Promise<void>;
-  updateUser: (user: User) => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './AuthContextDef';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -22,7 +11,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('workforce_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const refreshUser = async () => {
+  const logout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('workforce_token');
+    localStorage.removeItem('workforce_refresh_token');
+    localStorage.removeItem('workforce_user');
+  }, []);
+
+  const refreshUser = useCallback(async () => {
     if (!token) {
       setIsLoading(false);
       return;
@@ -36,7 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, logout]);
 
   useEffect(() => {
     if (token) {
@@ -44,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, refreshUser]);
 
   const login = (newToken: string, newUser: User, newRefreshToken?: string) => {
     setToken(newToken);
@@ -61,25 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('workforce_user', JSON.stringify(updated));
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('workforce_token');
-    localStorage.removeItem('workforce_refresh_token');
-    localStorage.removeItem('workforce_user');
-  };
-
   return (
     <AuthContext.Provider value={{ user, token, isLoading, login, logout, refreshUser, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

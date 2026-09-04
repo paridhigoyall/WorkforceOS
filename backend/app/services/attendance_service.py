@@ -173,6 +173,36 @@ class AttendanceService:
 
         return db_attendance
 
+    async def check_out_active(self, employee_id: UUID, check_out_time: Optional[datetime] = None) -> Attendance:
+        """
+        Record check-out for an employee's active (open) attendance record.
+        Looks up today's record first, or the latest un-checked-out record.
+        """
+        if check_out_time is None:
+            check_out_time = datetime.now(timezone.utc)
+        elif check_out_time.tzinfo is None:
+            check_out_time = check_out_time.replace(tzinfo=timezone.utc)
+
+        attendance_date = check_out_time.date()
+        record = await self.repo.get_by_employee_and_date(employee_id, attendance_date)
+        if not record or record.check_out_time is not None:
+            stmt = (
+                select(Attendance)
+                .where(
+                    Attendance.employee_id == employee_id,
+                    Attendance.check_out_time.is_(None)
+                )
+                .order_by(Attendance.check_in_time.desc())
+                .limit(1)
+            )
+            res = await self.db_session.execute(stmt)
+            record = res.scalar_one_or_none()
+
+        if not record:
+            raise ValueError(f"No active check-in record found for employee {employee_id}.")
+
+        return await self.check_out(record.id, check_out_time)
+
     async def get_attendance(self, id: UUID) -> Attendance:
         """Fetch attendance record by ID, raising error if missing."""
         db_attendance = await self.repo.get_by_id(id)

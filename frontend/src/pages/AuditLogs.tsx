@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Filter, Eye, RefreshCw } from 'lucide-react';
 
 import { auditLogsApi } from '../api/endpoints';
@@ -15,7 +15,7 @@ export const AuditLogs: React.FC = () => {
   // Selected JSON Inspect Modal
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
       const data = await auditLogsApi.list({
@@ -30,11 +30,11 @@ export const AuditLogs: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [actionFilter, targetFilter]);
 
   useEffect(() => {
     fetchLogs();
-  }, [actionFilter, targetFilter]);
+  }, [fetchLogs]);
 
   const getActionBadge = (action: string) => {
     if (action.includes('ONBOARD') || action.includes('CREATE') || action.includes('APPROVE')) {

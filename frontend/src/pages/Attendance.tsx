@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { attendanceApi } from '../api/endpoints';
 import type { AttendanceRecord } from '../types';
 
@@ -8,7 +8,7 @@ export const Attendance: React.FC = () => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  const fetchAttendance = async () => {
+  const fetchAttendance = useCallback(async () => {
     try {
       setLoading(true);
       const data = await attendanceApi.list({
@@ -21,11 +21,11 @@ export const Attendance: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchAttendance();
-  }, [startDate, endDate]);
+  }, [fetchAttendance]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {

@@ -166,6 +166,9 @@ python verify_payroll.py
 
 # Verify Insights & ML turnover risk datasets
 python verify_insights.py
+
+# Verify ML Code Review integrity, leakage prevention & fairness
+python verify_ml_integrity.py
 ```
 
 ### 4. Frontend Typechecking & Linting

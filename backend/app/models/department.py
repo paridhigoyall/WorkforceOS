@@ -34,7 +34,15 @@ class Department(Base, TimestampMixin, SoftDeleteMixin):
         index=True,
         comment="Unique name of the department"
     )
-    
+
+    code: Mapped[str] = mapped_column(
+        String(10),
+        unique=True,
+        nullable=False,
+        index=True,
+        comment="Short uppercase department code, e.g. ENG, HR, FIN"
+    )
+
     description: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,

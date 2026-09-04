@@ -650,9 +650,9 @@ async def verify_migration_chain() -> None:
         row = result.fetchone()
         if row:
             ok(f"alembic_version present: {row[0]}")
-            EXPECTED_HEAD = "d0a539fe0864"
+            EXPECTED_HEAD = "a3f7c1d8e924"
             if row[0] == EXPECTED_HEAD:
-                ok(f"DB is at latest migration head ({EXPECTED_HEAD} -- create_leave_tables)")
+                ok(f"DB is at latest migration head ({EXPECTED_HEAD} -- add_department_code)")
             else:
                 warn(f"DB head is '{row[0]}', expected '{EXPECTED_HEAD}'")
         else:

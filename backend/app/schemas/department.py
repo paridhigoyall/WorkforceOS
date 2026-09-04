@@ -11,6 +11,12 @@ class DepartmentBase(BaseModel):
         max_length=100,
         description="The unique name of the department"
     )
+    code: str = Field(
+        ...,
+        min_length=1,
+        max_length=10,
+        description="Short uppercase department code, e.g. ENG, HR, FIN"
+    )
     description: Optional[str] = Field(
         None,
         max_length=255,
@@ -25,6 +31,14 @@ class DepartmentBase(BaseModel):
             raise ValueError("Department name cannot be empty or whitespace only")
         return stripped
 
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: str) -> str:
+        stripped = value.strip().upper()
+        if not stripped:
+            raise ValueError("Department code cannot be empty or whitespace only")
+        return stripped
+
 
 class DepartmentCreate(DepartmentBase):
     pass
@@ -36,6 +50,12 @@ class DepartmentUpdate(BaseModel):
         min_length=1,
         max_length=100,
         description="The unique name of the department"
+    )
+    code: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=10,
+        description="Short uppercase department code"
     )
     description: Optional[str] = Field(
         None,
@@ -51,6 +71,16 @@ class DepartmentUpdate(BaseModel):
         stripped = value.strip()
         if not stripped:
             raise ValueError("Department name cannot be empty or whitespace only")
+        return stripped
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        stripped = value.strip().upper()
+        if not stripped:
+            raise ValueError("Department code cannot be empty or whitespace only")
         return stripped
 
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { UserPlus, Search, UserX } from 'lucide-react';
 import { employeesApi, departmentsApi } from '../api/endpoints';
 import type { Employee, Department } from '../types';
@@ -21,7 +21,7 @@ export const Employees: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
       const [empData, deptData] = await Promise.all([
@@ -35,11 +35,11 @@ export const Employees: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDept]);
 
   useEffect(() => {
     fetchEmployees();
-  }, [selectedDept]);
+  }, [fetchEmployees]);
 
   const handleOnboard = async (e: React.FormEvent) => {
     e.preventDefault();

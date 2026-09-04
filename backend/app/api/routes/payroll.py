@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.api.dependencies.auth import get_current_user, require_role
 from app.models.user import User, UserRole
+from app.repositories.employee_repository import EmployeeRepository
 from app.schemas.payroll import (
     PayrollGenerationRequest,
     PayrollPeriodResponse,
@@ -115,3 +116,28 @@ async def get_employee_payslip(
         return await service.get_payslip(record_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/payslips/my",
+    response_model=List[PayslipDetailResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get my payslips",
+    description="Retrieve all payslips for the currently authenticated employee, newest first. Staff can only see their own."
+)
+async def get_my_payslips(
+    limit: int = Query(12, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> List[PayslipDetailResponse]:
+    """Return all payslips for the currently authenticated employee."""
+    emp_repo = EmployeeRepository(db)
+    employee = await emp_repo.get_by_user_id(current_user.id)
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current user does not have an active employee profile."
+        )
+    service = PayrollService(db)
+    return await service.get_my_payslips(employee.id, limit=limit, offset=offset)

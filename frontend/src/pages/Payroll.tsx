@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { DollarSign, Calendar, CheckCircle2, FileText, Plus, Printer } from 'lucide-react';
 import { payrollApi } from '../api/endpoints';
 import type { PayrollPeriod, PayrollRecord, PayslipDetail } from '../types';
 import { Modal } from '../components/UI/Modal';
 import { StatCard } from '../components/UI/StatCard';
+import { useToast } from '../context/useToast';
 
 export const Payroll: React.FC = () => {
+  const toast = useToast();
   const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<PayrollPeriod | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -21,27 +23,46 @@ export const Payroll: React.FC = () => {
   const [selectedPayslip, setSelectedPayslip] = useState<PayslipDetail | null>(null);
   const [, setPayslipLoading] = useState<boolean>(false);
 
+  // My Payslips (self-service staff view)
+  const [myPayslips, setMyPayslips] = useState<PayslipDetail[]>([]);
+  const [myPayslipsLoading, setMyPayslipsLoading] = useState<boolean>(false);
 
-  const fetchPayrollPeriods = async () => {
+  const fetchPayrollPeriods = useCallback(async () => {
     try {
       setLoading(true);
       const data = await payrollApi.listPeriods();
       setPeriods(data);
-      if (data.length > 0 && !selectedPeriod) {
-        // Automatically load latest period
-        const latestPeriod = await payrollApi.getPeriod(data[0].id);
-        setSelectedPeriod(latestPeriod);
+      if (data.length > 0) {
+        setSelectedPeriod(prev => {
+          if (!prev) {
+            payrollApi.getPeriod(data[0].id).then(setSelectedPeriod).catch(console.error);
+          }
+          return prev;
+        });
       }
     } catch (err) {
       console.error('Failed to fetch payroll periods:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const fetchMyPayslips = useCallback(async () => {
+    try {
+      setMyPayslipsLoading(true);
+      const data = await payrollApi.getMyPayslips();
+      setMyPayslips(data);
+    } catch (err) {
+      console.error('Failed to fetch personal payslips:', err);
+    } finally {
+      setMyPayslipsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchPayrollPeriods();
-  }, []);
+    fetchMyPayslips();
+  }, [fetchPayrollPeriods, fetchMyPayslips]);
 
   const handleSelectPeriod = async (periodId: string) => {
     try {
@@ -64,6 +85,7 @@ export const Payroll: React.FC = () => {
       setIsGenerateModalOpen(false);
       setSelectedPeriod(newPeriod);
       fetchPayrollPeriods();
+      toast.success(`Payroll period for ${genYear}-${String(genMonth).padStart(2, '0')} generated.`);
     } catch (err: any) {
       setGenError(err.response?.data?.detail || 'Failed to generate payroll batch.');
     } finally {
@@ -78,8 +100,9 @@ export const Payroll: React.FC = () => {
       const approved = await payrollApi.approvePeriod(selectedPeriod.id);
       setSelectedPeriod(approved);
       fetchPayrollPeriods();
+      toast.success('Payroll batch approved and marked as paid.');
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Approval failed.');
+      toast.error(err.response?.data?.detail || 'Approval failed.');
     } finally {
       setLoading(false);
     }
@@ -91,7 +114,8 @@ export const Payroll: React.FC = () => {
       const payslip = await payrollApi.getPayslip(recordId);
       setSelectedPayslip(payslip);
     } catch (err) {
-      alert('Failed to load digital payslip.');
+      console.error('Failed to load digital payslip:', err);
+      toast.error('Failed to load digital payslip.');
     } finally {
       setPayslipLoading(false);
     }
@@ -242,6 +266,79 @@ export const Payroll: React.FC = () => {
                       >
                         <FileText size={14} />
                         <span>View Payslip</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* My Payslip History — self-service view for all employees */}
+      <div className="glass-panel" style={{ overflow: 'hidden' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--glass-border)' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#fff' }}>
+            My Payslip History
+          </h3>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            Your personal payslips across all processed payroll periods.
+          </p>
+        </div>
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Base Salary</th>
+                <th>Overtime Pay</th>
+                <th>Tax Deduction</th>
+                <th>Net Pay</th>
+                <th>Status</th>
+                <th>Payslip</th>
+              </tr>
+            </thead>
+            <tbody>
+              {myPayslipsLoading ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                    Loading your payslips...
+                  </td>
+                </tr>
+              ) : myPayslips.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                    No payslips available yet. Payslips appear here once payroll is approved.
+                  </td>
+                </tr>
+              ) : (
+                myPayslips.map((slip) => (
+                  <tr key={slip.id}>
+                    <td style={{ fontWeight: 600, color: '#fff' }}>
+                      {slip.period_year}-{String(slip.period_month).padStart(2, '0')}
+                    </td>
+                    <td>${slip.base_salary.toLocaleString()}</td>
+                    <td style={{ color: slip.overtime_pay > 0 ? 'var(--accent-emerald)' : 'inherit' }}>
+                      +${slip.overtime_pay.toLocaleString()}
+                    </td>
+                    <td style={{ color: 'var(--accent-rose)' }}>-${slip.tax_deduction.toLocaleString()}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--accent-emerald)', fontSize: '0.9375rem' }}>
+                      ${slip.net_pay.toLocaleString()}
+                    </td>
+                    <td>
+                      <span className={`badge ${slip.status === 'PAID' ? 'badge-success' : 'badge-warning'}`}>
+                        {slip.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => setSelectedPayslip(slip)}
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'var(--accent-cyan)' }}
+                      >
+                        <FileText size={14} />
+                        <span>View</span>
                       </button>
                     </td>
                   </tr>

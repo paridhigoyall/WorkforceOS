@@ -17,6 +17,7 @@ class DepartmentRepository:
         """Create a new department."""
         db_dept = Department(
             name=schema.name,
+            code=schema.code,
             description=schema.description
         )
         self.db_session.add(db_dept)

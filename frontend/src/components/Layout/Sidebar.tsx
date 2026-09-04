@@ -13,7 +13,7 @@ import {
   Zap,
   ChevronRight,
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 
 interface NavItem {
   label: string;
@@ -52,7 +52,7 @@ export const Sidebar: React.FC = () => {
     <aside style={{
       width: '260px',
       minWidth: '260px',
-      background: 'rgba(7, 11, 20, 0.97)',
+      background: 'rgba(23, 17, 15, 0.97)',
       borderRight: '1px solid var(--glass-border)',
       display: 'flex',
       flexDirection: 'column',
@@ -65,7 +65,7 @@ export const Sidebar: React.FC = () => {
       {/* Brand Header */}
       <div style={{
         padding: '24px 20px 20px',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        borderBottom: '1px solid rgba(224, 195, 172, 0.08)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Logo mark */}
@@ -73,7 +73,7 @@ export const Sidebar: React.FC = () => {
             width: '40px',
             height: '40px',
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, var(--primary), var(--accent-purple))',
+            background: 'linear-gradient(135deg, var(--primary), var(--wood-accent))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -88,7 +88,7 @@ export const Sidebar: React.FC = () => {
             <div style={{
               fontSize: '1.125rem',
               fontWeight: 800,
-              color: '#fff',
+              color: 'var(--text-main)',
               letterSpacing: '-0.4px',
               lineHeight: 1.2,
             }}>
@@ -97,12 +97,12 @@ export const Sidebar: React.FC = () => {
             <div style={{
               fontSize: '0.65rem',
               fontWeight: 700,
-              color: 'var(--accent-cyan)',
+              color: 'var(--primary-light)',
               letterSpacing: '1.5px',
               textTransform: 'uppercase',
               marginTop: '2px',
             }}>
-              AI Enterprise
+              Lilac & Walnut
             </div>
           </div>
         </div>
@@ -185,7 +185,7 @@ export const Sidebar: React.FC = () => {
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, var(--primary), var(--accent-purple))',
+            background: 'linear-gradient(135deg, var(--primary), var(--wood-accent))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

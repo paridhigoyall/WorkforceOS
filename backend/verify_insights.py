@@ -109,7 +109,7 @@ async def verify_insights_logic() -> None:
         db.begin = begin_decorator
 
         # Seed Department, Users, Employees
-        dept = Department(name="Engineering")
+        dept = Department(name="Engineering", code="ENG")
         db.add(dept)
         await db.flush()
 

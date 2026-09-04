@@ -67,3 +67,24 @@ class PayrollRepository:
         self.db.add(period)
         await self.db.flush()
         return period
+
+    async def get_records_by_employee_id(
+        self,
+        employee_id: UUID,
+        limit: int = 12,
+        offset: int = 0
+    ) -> List[PayrollRecord]:
+        """Fetch all payroll records for a specific employee, newest period first."""
+        stmt = (
+            select(PayrollRecord)
+            .where(PayrollRecord.employee_id == employee_id)
+            .options(
+                selectinload(PayrollRecord.employee),
+                selectinload(PayrollRecord.payroll_period)
+            )
+            .order_by(PayrollRecord.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        res = await self.db.execute(stmt)
+        return list(res.scalars().all())

@@ -274,6 +274,40 @@ async def update_balance(
 
 
 @router.get(
+    "/balances",
+    response_model=List[LeaveBalanceResponse],
+    summary="Get leave balances for current user or filtered employee",
+    description=(
+        "Retrieve all leave balance entries. "
+        "Staff defaults to their own profile; Admin/HR may pass employee_id query param."
+    ),
+)
+async def get_my_balances(
+    employee_id: Optional[UUID] = Query(None, description="Filter by employee UUID (Admin/HR only)"),
+    year: Optional[int] = Query(None, ge=2000, le=2100, description="Filter by calendar year"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = LeaveService(db)
+    is_privileged = current_user.role in (UserRole.ADMIN, UserRole.HR)
+
+    if employee_id is not None:
+        if not is_privileged:
+            employee = await get_employee_for_user(db, current_user.id)
+            if employee.id != employee_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access forbidden: You can only view your own leave balances.",
+                )
+        target_emp_id = employee_id
+    else:
+        employee = await get_employee_for_user(db, current_user.id)
+        target_emp_id = employee.id
+
+    return await service.list_balances(target_emp_id, year)
+
+
+@router.get(
     "/balances/{employee_id}",
     response_model=List[LeaveBalanceResponse],
     summary="Get leave balances for an employee",

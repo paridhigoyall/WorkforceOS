@@ -75,7 +75,7 @@ export interface AttendanceRecord {
 export interface LeaveRequest {
   id: string;
   employee_id: string;
-  leave_type: 'ANNUAL' | 'SICK' | 'MATERNITY' | 'UNPAID' | 'CASUAL';
+  leave_type: 'Casual' | 'Sick' | 'Earned' | 'Unpaid';
   start_date: string;
   end_date: string;
   reason?: string;

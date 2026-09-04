@@ -119,12 +119,11 @@ export const employeesApi = {
     return response.data;
   },
   update: async (id: string, data: { department_id?: string; phone?: string; base_salary?: number }) => {
-    const response = await apiClient.patch<Employee>(`/employees/${id}`, data);
+    const response = await apiClient.put<Employee>(`/employees/${id}`, data);
     return response.data;
   },
   offboard: async (id: string) => {
-    const response = await apiClient.post<Employee>(`/employees/${id}/offboard`);
-    return response.data;
+    await apiClient.delete(`/employees/${id}`);
   }
 };
 
@@ -145,23 +144,23 @@ export const attendanceApi = {
 
 export const leaveApi = {
   apply: async (data: { leave_type: string; start_date: string; end_date: string; reason?: string }) => {
-    const response = await apiClient.post<LeaveRequest>('/leave/requests', data);
+    const response = await apiClient.post<LeaveRequest>('/leave/', data);
     return response.data;
   },
   listRequests: async (params?: { employee_id?: string; status?: string }) => {
-    const response = await apiClient.get<LeaveRequest[]>('/leave/requests', { params });
+    const response = await apiClient.get<LeaveRequest[]>('/leave/', { params });
     return response.data;
   },
   approve: async (id: string) => {
-    const response = await apiClient.post<LeaveRequest>(`/leave/requests/${id}/approve`);
+    const response = await apiClient.post<LeaveRequest>(`/leave/${id}/approve`);
     return response.data;
   },
   reject: async (id: string) => {
-    const response = await apiClient.post<LeaveRequest>(`/leave/requests/${id}/reject`);
+    const response = await apiClient.post<LeaveRequest>(`/leave/${id}/reject`);
     return response.data;
   },
   cancel: async (id: string) => {
-    const response = await apiClient.post<LeaveRequest>(`/leave/requests/${id}/cancel`);
+    const response = await apiClient.post<LeaveRequest>(`/leave/${id}/cancel`);
     return response.data;
   },
   listBalances: async (employeeId?: string, year?: number) => {
@@ -225,6 +224,10 @@ export const payrollApi = {
   },
   getPayslip: async (recordId: string) => {
     const response = await apiClient.get<PayslipDetail>(`/payroll/records/${recordId}/payslip`);
+    return response.data;
+  },
+  getMyPayslips: async (params?: { limit?: number; offset?: number }) => {
+    const response = await apiClient.get<PayslipDetail[]>('/payroll/payslips/my', { params });
     return response.data;
   }
 };

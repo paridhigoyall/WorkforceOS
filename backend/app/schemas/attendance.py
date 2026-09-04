@@ -46,10 +46,13 @@ class CheckInRequest(BaseModel):
 
 
 class CheckOutRequest(BaseModel):
-    """Payload for POST /attendance/{id}/check-out."""
+    """Payload for POST /attendance/check-out or POST /attendance/{id}/check-out."""
 
     check_out_time: Optional[datetime] = Field(
         None, description="Optional custom check-out time (defaults to current time)"
+    )
+    employee_id: Optional[UUID] = Field(
+        None, description="Employee UUID (Admin/HR only — omit to use current user's active record)"
     )
 
 
