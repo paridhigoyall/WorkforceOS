@@ -37,7 +37,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_departments_id'), 'departments', ['id'], unique=False)
     op.create_index(op.f('ix_departments_name'), 'departments', ['name'], unique=True)
     op.create_table('users',
-    sa.Column('email', sa.String(length=255), nullable=False, comment='User login e‑mail address'),
+    sa.Column('email', sa.String(length=255), nullable=False, comment='User login email address'),
     sa.Column('hashed_password', sa.String(length=255), nullable=False, comment='BCrypt hashed password'),
     sa.Column('role', sa.Enum('ADMIN', 'HR', 'STAFF', name='userrole', native_enum=False, length=20), nullable=False, comment='User role for RBAC'),
     sa.Column('id', sa.UUID(), nullable=False, comment='Primary key UUID'),

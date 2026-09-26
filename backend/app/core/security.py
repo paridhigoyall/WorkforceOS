@@ -11,10 +11,10 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT Configuration
-# Retrieve configurations from environment variables with sensible defaults for local development
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "default-dev-secret-key-replace-in-production-with-a-secure-32-byte-hex-string")
-ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+# Retrieve configurations from environment variables (supports JWT_SECRET_KEY or SECRET_KEY)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "default-dev-secret-key-replace-in-production-with-a-secure-32-byte-hex-string"
+ALGORITHM = os.getenv("JWT_ALGORITHM") or os.getenv("ALGORITHM") or "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 

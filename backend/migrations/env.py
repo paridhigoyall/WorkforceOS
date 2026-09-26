@@ -49,11 +49,23 @@ from app.models.notification import Notification  # noqa: F401
 config = context.config
 
 # ---------------------------------------------------------------------------
-# Inject DATABASE_URL — same default as app/core/database.py
+# Inject DATABASE_URL — same default and normalization as app/core/database.py
 # ---------------------------------------------------------------------------
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
+def _normalize_database_url(url: str) -> str:
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql://") and not url.startswith("postgresql+"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
+DATABASE_URL = _normalize_database_url(
+    os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
+    )
 )
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 

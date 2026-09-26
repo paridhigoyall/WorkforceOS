@@ -7,7 +7,7 @@ Create Date: 2026-08-21 14:00:00.000000+00:00
 from __future__ import annotations
 
 from typing import Sequence, Union
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -19,16 +19,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # 1. Add MFA columns to users table if not existing
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-    user_cols = [c['name'] for c in inspector.get_columns('users')]
+    if context.is_offline_mode():
+        user_cols = []
+        tables = []
+    else:
+        conn = op.get_bind()
+        inspector = sa.inspect(conn)
+        user_cols = [c['name'] for c in inspector.get_columns('users')]
+        tables = inspector.get_table_names()
     
     if 'is_mfa_enabled' not in user_cols:
         op.add_column('users', sa.Column('is_mfa_enabled', sa.Boolean(), nullable=False, server_default='false'))
     if 'mfa_secret' not in user_cols:
         op.add_column('users', sa.Column('mfa_secret', sa.String(length=64), nullable=True))
-
-    tables = inspector.get_table_names()
 
     # 2. Create notifications table if not existing
     if 'notifications' not in tables:

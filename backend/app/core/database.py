@@ -2,10 +2,23 @@ import os
 from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
+def _normalize_database_url(url: str) -> str:
+    """Normalize database URL for async SQLAlchemy / asyncpg dialect."""
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql://") and not url.startswith("postgresql+"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 # Database URL fallback uses asyncpg driver for PostgreSQL
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
+DATABASE_URL = _normalize_database_url(
+    os.getenv(
+        "DATABASE_URL", 
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
+    )
 )
 
 # Create the async engine

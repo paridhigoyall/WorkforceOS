@@ -7,7 +7,7 @@ Create Date: 2026-09-01 11:20:00.000000+00:00
 from __future__ import annotations
 
 from typing import Sequence, Union
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -18,9 +18,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-    dept_cols = [c['name'] for c in inspector.get_columns('departments')]
+    if context.is_offline_mode():
+        dept_cols = []
+    else:
+        conn = op.get_bind()
+        inspector = sa.inspect(conn)
+        dept_cols = [c['name'] for c in inspector.get_columns('departments')]
 
     if 'code' not in dept_cols:
         # Add column as nullable first so existing rows don't violate NOT NULL
