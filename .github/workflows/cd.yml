@@ -43,6 +43,9 @@ jobs:
       - name: Checkout Codebase
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Lowercase Repository Name for GHCR
+        run: echo "IMAGE_REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
@@ -62,15 +65,15 @@ jobs:
           sbom: true
           provenance: true
           tags: |
-            ghcr.io/${{ github.repository }}/${{ matrix.image_suffix }}:latest
-            ghcr.io/${{ github.repository }}/${{ matrix.image_suffix }}:${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_REPO }}/${{ matrix.image_suffix }}:latest
+            ghcr.io/${{ env.IMAGE_REPO }}/${{ matrix.image_suffix }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Vulnerability Scan ${{ matrix.service }} (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'ghcr.io/${{ github.repository }}/${{ matrix.image_suffix }}:${{ github.sha }}'
+          image-ref: 'ghcr.io/${{ env.IMAGE_REPO }}/${{ matrix.image_suffix }}:${{ github.sha }}'
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
@@ -83,11 +86,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
+      - name: Lowercase Repository Name
+        run: echo "IMAGE_REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Log Published Images
         run: |
           echo "Production images built, scanned, and published to GHCR:"
-          echo "  - ghcr.io/${{ github.repository }}/backend:${{ github.sha }}"
-          echo "  - ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}"
+          echo "  - ghcr.io/${{ env.IMAGE_REPO }}/backend:${{ github.sha }}"
+          echo "  - ghcr.io/${{ env.IMAGE_REPO }}/frontend:${{ github.sha }}"
           echo "Ready for deployment via manual workflow dispatch or automated webhook."
 
   deploy-production:
@@ -101,11 +107,14 @@ jobs:
       - name: Checkout Codebase
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Lowercase Repository Name
+        run: echo "IMAGE_REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Deploy to Production Server via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
           IMAGE_TAG: ${{ github.sha }}
-          REGISTRY: ghcr.io/${{ github.repository }}
+          REGISTRY: ghcr.io/${{ env.IMAGE_REPO }}
         with:
           host: ${{ secrets.DEPLOY_SSH_HOST }}
           username: ${{ secrets.DEPLOY_SSH_USER }}
